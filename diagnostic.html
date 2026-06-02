@@ -193,10 +193,12 @@ function renderQuestion(index) {
   document.getElementById('progress-label').textContent = `${index + 1} / ${total}`;
   document.getElementById('progress-fill').style.width  = `${Math.round((index / total) * 100)}%`;
 
+  const atLimit    = !isSingle && Array.isArray(answer) && answer.length >= q.correct.length;
   const optionsHtml = q.options.map((opt, i) => {
     const letter   = String.fromCharCode(65 + i);
     const selected = isSingle ? answer === i : (Array.isArray(answer) && answer.includes(i));
-    return `<div class="option${selected ? ' selected' : ''}" onclick="selectAnswer(${index},${i})">
+    const dimmed   = atLimit && !selected;
+    return `<div class="option${selected ? ' selected' : ''}${dimmed ? ' opt-disabled' : ''}" onclick="selectAnswer(${index},${i})">
       <span class="option-marker">${isSingle ? (selected ? '●' : '○') : (selected ? '☑' : '☐')}</span>
       <span class="option-letter">${letter}.</span>
       <span class="option-text">${escHtml(opt)}</span>
@@ -206,7 +208,7 @@ function renderQuestion(index) {
   const required     = isSingle ? 1 : q.correct.length;
   const selectedCount = answer === undefined || answer === null ? 0
     : typeof answer === 'number' ? 1 : answer.length;
-  const hasAnswer = selectedCount >= required;
+  const hasAnswer = selectedCount === required;
   const isLast = index === total - 1;
 
   document.getElementById('diag-question-card').innerHTML = `
@@ -218,7 +220,7 @@ function renderQuestion(index) {
     <p class="question-instruction">${isSingle ? 'Select one answer.' : `Select ${required} answer${required > 1 ? 's' : ''}.`}</p>
     <p class="question-text">${escHtml(q.question)}</p>
     <div class="options-list mb-2">${optionsHtml}</div>
-    ${!isSingle ? `<p style="font-size:0.8125rem;margin-bottom:0.75rem;color:${hasAnswer ? 'var(--green-light)' : 'var(--text-muted)'}">${selectedCount} of ${required} selected${hasAnswer ? ' ✓' : ''}</p>` : ''}
+    ${!isSingle ? `<p style="font-size:0.8125rem;margin-bottom:0.75rem;color:${hasAnswer ? 'var(--green-light)' : selectedCount > 0 ? '#e3b341' : 'var(--text-muted)'}">${selectedCount} of ${required} selected${hasAnswer ? ' ✓' : ''}</p>` : ''}
     <div class="question-controls">
       <button class="btn btn-secondary" onclick="renderQuestion(${index - 1})"${index === 0 ? ' disabled' : ''}>← Back</button>
       ${isLast
@@ -236,7 +238,11 @@ function selectAnswer(qIndex, optIndex) {
     if (!Array.isArray(userAnswers[qIndex])) userAnswers[qIndex] = [];
     const arr = userAnswers[qIndex];
     const pos = arr.indexOf(optIndex);
-    if (pos === -1) arr.push(optIndex); else arr.splice(pos, 1);
+    if (pos === -1) {
+      if (arr.length < q.correct.length) arr.push(optIndex);
+    } else {
+      arr.splice(pos, 1);
+    }
   }
   renderQuestion(qIndex);
 }
