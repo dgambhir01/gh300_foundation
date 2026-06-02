@@ -157,15 +157,23 @@ function renderQuestion(index) {
   }).join('');
 
   const isFlagged = flagged.has(index);
+  const required     = isSingle ? 1 : q.correct.length;
+  const selectedCount = Array.isArray(answer) ? answer.length : (typeof answer === 'number' ? 1 : 0);
+  const counterHtml  = isSingle ? '' : (() => {
+    const done = selectedCount >= required;
+    const col  = done ? 'var(--green-light)' : selectedCount > 0 ? '#e3b341' : 'var(--text-muted)';
+    return `<p style="font-size:0.8125rem;margin-top:0.5rem;color:${col}">${selectedCount} of ${required} selected${done ? ' ✓' : ''}</p>`;
+  })();
   document.getElementById('question-container').innerHTML = `
     <div class="question-meta">
       <span class="question-counter">Question ${index + 1} of ${examQuestions.length}</span>
       <span class="badge badge-muted">${escHtml(q.domain)}</span>
       ${isFlagged ? '<span class="badge badge-orange">⚑ Flagged</span>' : ''}
     </div>
-    <p class="question-instruction">${isSingle ? 'Select one answer.' : 'Select all that apply.'}</p>
+    <p class="question-instruction">${isSingle ? 'Select one answer.' : `Select ${required} answer${required > 1 ? 's' : ''}.`}</p>
     <p class="question-text">${escHtml(q.question)}</p>
     <div class="options-list">${optionsHtml}</div>
+    ${counterHtml}
     <div class="question-controls">
       <button class="btn btn-outline flag-btn${isFlagged ? ' flagged' : ''}" onclick="toggleFlag(${index})">
         ${isFlagged ? '⚑ Unflag' : '⚐ Flag for Review'}

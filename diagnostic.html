@@ -43,7 +43,7 @@
         <div class="card" style="padding:0.875rem">
           <div style="font-size:1.25rem;margin-bottom:0.25rem">📋</div>
           <div style="font-size:0.875rem;font-weight:600;margin-bottom:0.2rem">Up to 10 Questions</div>
-          <div style="font-size:0.8rem;color:var(--text-muted)">Covering all 7 domains</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">Covering all 6 domains</div>
         </div>
         <div class="card" style="padding:0.875rem">
           <div style="font-size:1.25rem;margin-bottom:0.25rem">⏱</div>
@@ -203,24 +203,27 @@ function renderQuestion(index) {
     </div>`;
   }).join('');
 
-  const hasAnswer = answer !== undefined && answer !== null &&
-    (typeof answer === 'number' || (Array.isArray(answer) && answer.length > 0));
+  const required     = isSingle ? 1 : q.correct.length;
+  const selectedCount = answer === undefined || answer === null ? 0
+    : typeof answer === 'number' ? 1 : answer.length;
+  const hasAnswer = selectedCount >= required;
   const isLast = index === total - 1;
 
   document.getElementById('diag-question-card').innerHTML = `
     <div class="question-meta">
       <span class="question-counter">Question ${index + 1} of ${total}</span>
       <span class="badge badge-muted">${escHtml(q.domain)}</span>
-      <span class="badge badge-blue">${q.type === 'single' ? 'Single Select' : 'Multi-Select'}</span>
+      <span class="badge badge-blue">${isSingle ? 'Single Select' : 'Multi-Select'}</span>
     </div>
-    <p class="question-instruction">${isSingle ? 'Select one answer.' : 'Select all that apply.'}</p>
+    <p class="question-instruction">${isSingle ? 'Select one answer.' : `Select ${required} answer${required > 1 ? 's' : ''}.`}</p>
     <p class="question-text">${escHtml(q.question)}</p>
     <div class="options-list mb-2">${optionsHtml}</div>
+    ${!isSingle ? `<p style="font-size:0.8125rem;margin-bottom:0.75rem;color:${hasAnswer ? 'var(--green-light)' : 'var(--text-muted)'}">${selectedCount} of ${required} selected${hasAnswer ? ' ✓' : ''}</p>` : ''}
     <div class="question-controls">
       <button class="btn btn-secondary" onclick="renderQuestion(${index - 1})"${index === 0 ? ' disabled' : ''}>← Back</button>
       ${isLast
-        ? `<button class="btn btn-primary" onclick="submitDiagnostic()"${!hasAnswer ? ' disabled id="next-btn"' : ''}>Submit &amp; See Results</button>`
-        : `<button class="btn btn-primary" onclick="renderQuestion(${index + 1})"${!hasAnswer ? ' disabled id="next-btn"' : ''}>Next →</button>`}
+        ? `<button class="btn btn-primary" onclick="submitDiagnostic()"${!hasAnswer ? ' disabled' : ''}>Submit &amp; See Results</button>`
+        : `<button class="btn btn-primary" onclick="renderQuestion(${index + 1})"${!hasAnswer ? ' disabled' : ''}>Next →</button>`}
     </div>`;
 }
 
