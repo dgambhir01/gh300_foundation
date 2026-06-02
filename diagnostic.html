@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnostic Test — GH-300 Prep</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="site-logo">
+      <div class="logo-icon">&#x1F916;</div>
+      GH-300 Prep
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="mock-exam.html" class="nav-link">Mock Exam</a>
+      <a href="drill.html" class="nav-link">Drill</a>
+      <a href="diagnostic.html" class="nav-link active">Diagnostic</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="container" style="max-width:800px">
+
+  <!-- Intro screen -->
+  <div id="intro-screen" class="fade-in">
+    <div class="page-hero">
+      <h1 class="page-title">Domain Diagnostic</h1>
+      <p class="page-subtitle">10 questions · No timer · Identifies your strong and weak domains</p>
+    </div>
+    <div class="card text-center" style="padding:3rem">
+      <div style="font-size:3rem;margin-bottom:1rem">🔍</div>
+      <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:0.75rem">Find your knowledge gaps</h2>
+      <p class="text-secondary mb-3" style="max-width:440px;margin-left:auto;margin-right:auto">
+        Answer one question per domain. The results show your percentage per domain so you know exactly where to focus your study time.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;max-width:540px;margin:0 auto 2rem;text-align:left">
+        <div class="card" style="padding:0.875rem">
+          <div style="font-size:1.25rem;margin-bottom:0.25rem">📋</div>
+          <div style="font-size:0.875rem;font-weight:600;margin-bottom:0.2rem">Up to 10 Questions</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">Covering all 7 domains</div>
+        </div>
+        <div class="card" style="padding:0.875rem">
+          <div style="font-size:1.25rem;margin-bottom:0.25rem">⏱</div>
+          <div style="font-size:0.875rem;font-weight:600;margin-bottom:0.2rem">No Timer</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">Take your time</div>
+        </div>
+        <div class="card" style="padding:0.875rem">
+          <div style="font-size:1.25rem;margin-bottom:0.25rem">📊</div>
+          <div style="font-size:0.875rem;font-weight:600;margin-bottom:0.2rem">Domain Scores</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">See exactly where to study</div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="startDiagnostic()">Begin Diagnostic</button>
+    </div>
+  </div>
+
+  <!-- Question screen -->
+  <div id="question-screen" class="hidden">
+    <div class="page-hero" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <h1 class="page-title">Domain Diagnostic</h1>
+        <p class="page-subtitle" id="q-subtitle">Question 1 of 10</p>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="if(confirm('Quit diagnostic?')){location.reload()}">Quit</button>
+    </div>
+
+    <div class="diagnostic-progress-wrap">
+      <span class="diagnostic-progress-label" id="progress-label">1 / 10</span>
+      <div class="progress-bar" style="flex:1">
+        <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="card question-area" id="diag-question-card">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
+  <!-- Results screen -->
+  <div id="results-screen" class="hidden fade-in">
+    <div class="page-hero">
+      <h1 class="page-title">Diagnostic Results</h1>
+      <p class="page-subtitle">Here's how you did across each domain.</p>
+    </div>
+    <div id="results-body"></div>
+  </div>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <p class="footer-title">Official Resources</p>
+        <div class="footer-links">
+          <a href="https://learn.microsoft.com/credentials/certifications/github-copilot/" class="footer-link" target="_blank" rel="noopener">Exam Page (Microsoft Learn)</a>
+          <a href="https://aka.ms/GH300-StudyGuide" class="footer-link" target="_blank" rel="noopener">Official Study Guide PDF</a>
+          <a href="https://docs.github.com/en/copilot" class="footer-link" target="_blank" rel="noopener">GitHub Copilot Docs</a>
+        </div>
+      </div>
+    </div>
+    <p class="footer-disclaimer">Independent community resource. Not affiliated with or endorsed by Microsoft or GitHub.</p>
+  </div>
+</footer>
+
+<script src="questions.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────
+const DOMAIN_ORDER = [
+  "Use GitHub Copilot Responsibly",
+  "Use GitHub Copilot Features",
+  "Understand GitHub Copilot Data and Architecture",
+  "Configure Privacy, Content Exclusions, and Safeguards",
+  "Improve Developer Productivity with GitHub Copilot",
+  "Apply Prompt Engineering and Context Crafting"
+];
+
+let diagQuestions = [];
+let userAnswers   = {};   // { index: number | number[] }
+let currentIndex  = 0;
+
+// ── Select questions ───────────────────────────────────────
+function selectDiagnosticQuestions() {
+  const qs       = window.QUESTIONS || [];
+  const shuffled = [...qs].sort(() => Math.random() - 0.5);
+  const selected = [];
+  const domainCount = {};
+
+  // Pass 1: one per domain
+  for (const q of shuffled) {
+    if (!domainCount[q.domain]) {
+      selected.push(q);
+      domainCount[q.domain] = 1;
+      if (selected.length >= 10) break;
+    }
+  }
+
+  // Pass 2: fill up to 10 (max 2 per domain)
+  if (selected.length < 10) {
+    for (const q of shuffled) {
+      if (selected.includes(q)) continue;
+      if ((domainCount[q.domain] || 0) < 2) {
+        selected.push(q);
+        domainCount[q.domain] = (domainCount[q.domain] || 0) + 1;
+        if (selected.length >= 10) break;
+      }
+    }
+  }
+
+  // Sort by domain order for a logical flow
+  selected.sort((a, b) => {
+    const ai = DOMAIN_ORDER.indexOf(a.domain);
+    const bi = DOMAIN_ORDER.indexOf(b.domain);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  return selected.slice(0, 10);
+}
+
+// ── Start ──────────────────────────────────────────────────
+function startDiagnostic() {
+  const qs = window.QUESTIONS || [];
+  if (qs.length === 0) {
+    alert('No questions found. Ensure questions.js is present.');
+    return;
+  }
+
+  diagQuestions = selectDiagnosticQuestions();
+  userAnswers   = {};
+  currentIndex  = 0;
+
+  document.getElementById('intro-screen').classList.add('hidden');
+  document.getElementById('question-screen').classList.remove('hidden');
+  renderQuestion(0);
+}
+
+// ── Render question ────────────────────────────────────────
+function renderQuestion(index) {
+  currentIndex = index;
+  const q      = diagQuestions[index];
+  const total  = diagQuestions.length;
+  const isSingle = q.type === 'single';
+  const answer   = userAnswers[index];
+
+  document.getElementById('q-subtitle').textContent    = `Question ${index + 1} of ${total}`;
+  document.getElementById('progress-label').textContent = `${index + 1} / ${total}`;
+  document.getElementById('progress-fill').style.width  = `${Math.round((index / total) * 100)}%`;
+
+  const optionsHtml = q.options.map((opt, i) => {
+    const letter   = String.fromCharCode(65 + i);
+    const selected = isSingle ? answer === i : (Array.isArray(answer) && answer.includes(i));
+    return `<div class="option${selected ? ' selected' : ''}" onclick="selectAnswer(${index},${i})">
+      <span class="option-marker">${isSingle ? (selected ? '●' : '○') : (selected ? '☑' : '☐')}</span>
+      <span class="option-letter">${letter}.</span>
+      <span class="option-text">${escHtml(opt)}</span>
+    </div>`;
+  }).join('');
+
+  const hasAnswer = answer !== undefined && answer !== null &&
+    (typeof answer === 'number' || (Array.isArray(answer) && answer.length > 0));
+  const isLast = index === total - 1;
+
+  document.getElementById('diag-question-card').innerHTML = `
+    <div class="question-meta">
+      <span class="question-counter">Question ${index + 1} of ${total}</span>
+      <span class="badge badge-muted">${escHtml(q.domain)}</span>
+      <span class="badge badge-blue">${q.type === 'single' ? 'Single Select' : 'Multi-Select'}</span>
+    </div>
+    <p class="question-instruction">${isSingle ? 'Select one answer.' : 'Select all that apply.'}</p>
+    <p class="question-text">${escHtml(q.question)}</p>
+    <div class="options-list mb-2">${optionsHtml}</div>
+    <div class="question-controls">
+      <button class="btn btn-secondary" onclick="renderQuestion(${index - 1})"${index === 0 ? ' disabled' : ''}>← Back</button>
+      ${isLast
+        ? `<button class="btn btn-primary" onclick="submitDiagnostic()"${!hasAnswer ? ' disabled id="next-btn"' : ''}>Submit &amp; See Results</button>`
+        : `<button class="btn btn-primary" onclick="renderQuestion(${index + 1})"${!hasAnswer ? ' disabled id="next-btn"' : ''}>Next →</button>`}
+    </div>`;
+}
+
+// ── Answer selection ───────────────────────────────────────
+function selectAnswer(qIndex, optIndex) {
+  const q = diagQuestions[qIndex];
+  if (q.type === 'single') {
+    userAnswers[qIndex] = optIndex;
+  } else {
+    if (!Array.isArray(userAnswers[qIndex])) userAnswers[qIndex] = [];
+    const arr = userAnswers[qIndex];
+    const pos = arr.indexOf(optIndex);
+    if (pos === -1) arr.push(optIndex); else arr.splice(pos, 1);
+  }
+  renderQuestion(qIndex);
+}
+
+// ── Submit ─────────────────────────────────────────────────
+function submitDiagnostic() {
+  const answered = Object.keys(userAnswers).length;
+  if (answered < diagQuestions.length) {
+    if (!confirm(`You have ${diagQuestions.length - answered} unanswered question(s). Submit anyway?`)) return;
+  }
+
+  const domainResults = {};
+  const questionResults = [];
+
+  diagQuestions.forEach((q, i) => {
+    const answer = userAnswers[i];
+    let isCorrect = false;
+    if (q.type === 'single') {
+      isCorrect = answer === q.correct;
+    } else {
+      const us = Array.isArray(answer) ? [...answer].sort().join(',') : '';
+      const cs = [...q.correct].sort().join(',');
+      isCorrect = us === cs;
+    }
+    if (!domainResults[q.domain]) domainResults[q.domain] = { correct: 0, total: 0 };
+    domainResults[q.domain].total++;
+    if (isCorrect) domainResults[q.domain].correct++;
+    questionResults.push({ q, i, answer, isCorrect });
+  });
+
+  localStorage.setItem('gh300_diagnostic_results', JSON.stringify({
+    date: new Date().toISOString(), domainResults, questionResults: questionResults.map(r => ({
+      qId: r.q.id, domain: r.q.domain, isCorrect: r.isCorrect
+    }))
+  }));
+
+  showResults(domainResults, questionResults);
+}
+
+// ── Results ────────────────────────────────────────────────
+function showResults(domainResults, questionResults) {
+  document.getElementById('question-screen').classList.add('hidden');
+  document.getElementById('results-screen').classList.remove('hidden');
+
+  // Sort domains: weakest first
+  const sorted = Object.entries(domainResults).sort((a, b) => {
+    const pa = a[1].correct / a[1].total;
+    const pb = b[1].correct / b[1].total;
+    return pa - pb;
+  });
+
+  const totalCorrect = questionResults.filter(r => r.isCorrect).length;
+  const totalQ       = questionResults.length;
+  const overallPct   = Math.round((totalCorrect / totalQ) * 100);
+
+  // Domain table
+  const domainRows = sorted.map(([d, data]) => {
+    const pct = Math.round((data.correct / data.total) * 100);
+    const col = pct >= 80 ? 'var(--green)' : pct >= 60 ? 'var(--orange)' : '#f85149';
+    const label = pct >= 80 ? '✓ Strong' : pct >= 60 ? '~ Moderate' : '✗ Needs Work';
+    return `<div class="domain-result-row">
+      <div class="domain-result-name">${escHtml(d)}</div>
+      <div class="domain-result-bar">
+        <div class="progress-bar">
+          <div class="progress-bar-fill" style="width:${pct}%;background:${col}"></div>
+        </div>
+      </div>
+      <div class="domain-result-pct" style="color:${col}">${pct}%</div>
+      <span class="badge" style="background:${col}22;color:${col};border:1px solid ${col}55;white-space:nowrap;font-size:0.7rem">${label}</span>
+    </div>`;
+  }).join('');
+
+  // Recommendations
+  const weak = sorted.filter(([,d]) => Math.round(d.correct/d.total*100) < 70);
+  const recoHtml = weak.length === 0
+    ? `<div class="card text-center" style="padding:1.5rem;color:var(--green-light)">🎉 Great job — all domains above 70%! Focus on mock exams to build speed.</div>`
+    : `<div class="reco-list">${weak.map(([d, data]) => {
+        const pct = Math.round((data.correct / data.total) * 100);
+        return `<div class="reco-item">
+          <span style="font-size:1.25rem">${pct < 40 ? '🔴' : '🟡'}</span>
+          <div>
+            <div style="font-weight:600;margin-bottom:0.125rem">${escHtml(d)}</div>
+            <div class="text-muted" style="font-size:0.8rem">${pct}% correct — review documentation and drill flashcards for this domain.</div>
+          </div>
+          <a href="drill.html" class="btn btn-sm btn-outline" style="margin-left:auto">Drill</a>
+        </div>`;
+      }).join('')}</div>`;
+
+  // Answer review
+  const reviewHtml = questionResults.map(({ q, i, answer, isCorrect }) => {
+    const correctText = q.type === 'single'
+      ? `${String.fromCharCode(65 + q.correct)}. ${q.options[q.correct]}`
+      : q.correct.map(j => `${String.fromCharCode(65 + j)}. ${q.options[j]}`).join('; ');
+    const userText = fmtAnswer(q, answer);
+    return `<div class="review-item ${isCorrect ? 'review-correct' : 'review-incorrect'}">
+      <div class="review-meta">
+        <span class="badge ${isCorrect ? 'badge-green' : 'badge-red'}">${isCorrect ? '✓ Correct' : '✗ Incorrect'}</span>
+        <span class="badge badge-muted">${escHtml(q.domain)}</span>
+      </div>
+      <p class="review-question-text">${escHtml(q.question)}</p>
+      ${!isCorrect ? `<p class="review-answer-label">Your answer: <span style="color:#ff7b72">${escHtml(userText || '(not answered)')}</span></p>` : ''}
+      <p class="review-answer-label">Correct: <span style="color:var(--green-light)">${escHtml(correctText)}</span></p>
+      <p class="review-explanation">${escHtml(q.explanation)}</p>
+    </div>`;
+  }).join('');
+
+  document.getElementById('results-body').innerHTML = `
+    <!-- Overall score -->
+    <div class="card text-center mb-2" style="padding:2rem">
+      <div style="font-size:3rem;font-weight:800;line-height:1;color:${overallPct>=70?'var(--green-light)':'#ff7b72'}">${overallPct}%</div>
+      <div style="font-size:1rem;font-weight:600;margin-top:0.375rem">${totalCorrect} of ${totalQ} correct</div>
+      <div class="text-muted" style="font-size:0.875rem;margin-top:0.25rem">Diagnostic complete — ${overallPct>=70?'you\'re tracking well':'review the domains below'}</div>
+    </div>
+
+    <!-- Domain breakdown -->
+    <div class="card mb-2">
+      <h3 class="section-title mb-2">Domain Scores</h3>
+      ${domainRows}
+    </div>
+
+    <!-- Recommendations -->
+    <div class="mb-2">
+      <h3 class="section-title mb-2">Study Recommendations</h3>
+      ${recoHtml}
+    </div>
+
+    <!-- Answer Review -->
+    <div class="mb-2">
+      <h3 class="section-title mb-2">Answer Review</h3>
+      <div class="review-list">${reviewHtml}</div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;padding-bottom:1rem">
+      <button class="btn btn-secondary" onclick="location.reload()">Retake Diagnostic</button>
+      <a href="drill.html" class="btn btn-secondary">Go to Drill Mode</a>
+      <a href="mock-exam.html" class="btn btn-primary">Start Mock Exam</a>
+    </div>`;
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Helpers ────────────────────────────────────────────────
+function fmtAnswer(q, answer) {
+  if (answer === undefined || answer === null) return null;
+  if (q.type === 'single') return typeof answer === 'number' ? `${String.fromCharCode(65 + answer)}. ${q.options[answer]}` : null;
+  if (!Array.isArray(answer) || answer.length === 0) return null;
+  return [...answer].sort().map(i => `${String.fromCharCode(65 + i)}. ${q.options[i]}`).join('; ');
+}
+
+function escHtml(str) {
+  if (!str && str !== 0) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+</script>
+</body>
+</html>

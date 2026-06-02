@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GH-300 GitHub Copilot Certification Study Site</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="site-logo">
+      <div class="logo-icon">&#x1F916;</div>
+      GH-300 Prep
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" class="nav-link active">Home</a>
+      <a href="mock-exam.html" class="nav-link">Mock Exam</a>
+      <a href="drill.html" class="nav-link">Drill</a>
+      <a href="diagnostic.html" class="nav-link">Diagnostic</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+
+    <section class="hero">
+      <p class="hero-eyebrow">GitHub Certification Prep</p>
+      <h1 class="hero-title">Ace the <span class="accent">GH-300</span><br>GitHub Copilot Exam</h1>
+      <p class="hero-subtitle">Practice with timed mock exams, domain drills, and diagnostic tests. Track your progress toward the 700/1000 pass mark.</p>
+      <div class="hero-cta">
+        <a href="mock-exam.html" class="btn btn-primary btn-lg">Start Mock Exam</a>
+        <a href="diagnostic.html" class="btn btn-secondary btn-lg">Take Diagnostic</a>
+        <a href="drill.html" class="btn btn-outline btn-lg">Flashcard Drill</a>
+      </div>
+    </section>
+
+    <section class="exam-info-strip">
+      <div class="exam-info-item">
+        <div class="exam-info-value" style="color:var(--green-light)">700</div>
+        <div class="exam-info-label">Pass Mark / 1000</div>
+      </div>
+      <div class="exam-info-item">
+        <div class="exam-info-value">100 min</div>
+        <div class="exam-info-label">Duration</div>
+      </div>
+      <div class="exam-info-item">
+        <div class="exam-info-value">60</div>
+        <div class="exam-info-label">Questions</div>
+      </div>
+      <div class="exam-info-item">
+        <div class="exam-info-value">6</div>
+        <div class="exam-info-label">Domains</div>
+      </div>
+      <div class="exam-info-item">
+        <div class="exam-info-value">MCQ</div>
+        <div class="exam-info-label">Single &amp; Multi-Select</div>
+      </div>
+    </section>
+
+    <section class="mb-3">
+      <div class="section-header">
+        <h2 class="section-title">Exam Domains</h2>
+        <span class="text-secondary" style="font-size:0.875rem">Progress from your mock exam history</span>
+      </div>
+      <div class="domain-grid" id="domain-grid"></div>
+    </section>
+
+    <section class="mb-3">
+      <div class="section-header">
+        <h2 class="section-title">Recent Mock Exams</h2>
+        <button class="btn btn-sm btn-outline" onclick="clearHistory()">Clear history</button>
+      </div>
+      <div id="history-section"></div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <p class="footer-title">Official Resources</p>
+        <div class="footer-links">
+          <a href="https://learn.microsoft.com/credentials/certifications/github-copilot/" class="footer-link" target="_blank" rel="noopener">Exam Page (Microsoft Learn)</a>
+          <a href="https://aka.ms/GH300-StudyGuide" class="footer-link" target="_blank" rel="noopener">Official Study Guide PDF</a>
+          <a href="https://docs.github.com/en/copilot" class="footer-link" target="_blank" rel="noopener">GitHub Copilot Documentation</a>
+        </div>
+      </div>
+      <div>
+        <p class="footer-title">Practice Tools</p>
+        <div class="footer-links">
+          <a href="mock-exam.html" class="footer-link">Mock Exam — 60 Q, 100 min</a>
+          <a href="drill.html" class="footer-link">Flashcard Drill Mode</a>
+          <a href="diagnostic.html" class="footer-link">Domain Diagnostic</a>
+        </div>
+      </div>
+      <div>
+        <p class="footer-title">About GH-300</p>
+        <div class="footer-links">
+          <span class="footer-link" style="cursor:default">Provider: Microsoft / GitHub via Pearson VUE</span>
+          <span class="footer-link" style="cursor:default">Pass mark: 700 / 1000</span>
+          <span class="footer-link" style="cursor:default">Duration: 100 minutes</span>
+        </div>
+      </div>
+    </div>
+    <p class="footer-disclaimer">Independent community resource. Not affiliated with or endorsed by Microsoft or GitHub. All trademarks are the property of their respective owners.</p>
+  </div>
+</footer>
+
+<script src="questions.js"></script>
+<script>
+const DOMAINS = (window.DOMAINS || [
+  { id: 1, name: "Use GitHub Copilot Responsibly",                       weight: "15–20%" },
+  { id: 2, name: "Use GitHub Copilot Features",                           weight: "25–30%" },
+  { id: 3, name: "Understand GitHub Copilot Data and Architecture",       weight: "10–15%" },
+  { id: 4, name: "Configure Privacy, Content Exclusions, and Safeguards", weight: "10–15%" },
+  { id: 5, name: "Improve Developer Productivity with GitHub Copilot",    weight: "10–15%" },
+  { id: 6, name: "Apply Prompt Engineering and Context Crafting",         weight: "10–15%" }
+]);
+
+function ringsvg(pct, hasData) {
+  const r = 22, cx = 28, cy = 28;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - pct / 100);
+  const color = pct >= 80 ? '#56d364' : pct >= 60 ? '#e3b341' : '#238636';
+  const label = hasData ? pct + '%' : '–';
+  return `<svg viewBox="0 0 56 56" width="58" height="58">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#30363d" stroke-width="5"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${hasData ? color : '#30363d'}" stroke-width="5"
+      stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${(hasData ? offset : circ).toFixed(2)}"
+      stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+      fill="${hasData ? color : '#6e7681'}" font-size="10" font-weight="700"
+      font-family="-apple-system,sans-serif">${label}</text>
+  </svg>`;
+}
+
+function getHistory() {
+  return JSON.parse(localStorage.getItem('gh300_mock_history') || '[]');
+}
+
+function aggregateDomainProgress(history) {
+  const agg = {};
+  history.forEach(r => {
+    if (!r.domainScores) return;
+    Object.entries(r.domainScores).forEach(([d, data]) => {
+      if (!agg[d]) agg[d] = { correct: 0, total: 0 };
+      agg[d].correct += data.correct;
+      agg[d].total   += data.total;
+    });
+  });
+  return agg;
+}
+
+function renderDomains() {
+  const history  = getHistory();
+  const progress = aggregateDomainProgress(history);
+  const grid = document.getElementById('domain-grid');
+  grid.innerHTML = DOMAINS.map((d, i) => {
+    const p = progress[d.name];
+    const hasData = p && p.total > 0;
+    const pct = hasData ? Math.round((p.correct / p.total) * 100) : 0;
+    return `<div class="card domain-card">
+      <div style="flex-shrink:0">${ringsvg(pct, hasData)}</div>
+      <div class="domain-card-body">
+        <div class="domain-card-name">Domain ${d.id || i + 1}: ${d.name}</div>
+        <div class="domain-card-weight">${d.weight} of exam</div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" style="width:${hasData ? pct : 0}%"></div>
+        </div>
+        ${hasData ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">${p.correct}/${p.total} correct across all attempts</div>` : '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">No data yet — take a mock exam</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderHistory() {
+  const history = getHistory();
+  const el = document.getElementById('history-section');
+  if (history.length === 0) {
+    el.innerHTML = `<div class="card text-center" style="padding:3rem">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem">📋</div>
+      <p class="text-secondary mb-2">No mock exams taken yet.</p>
+      <a href="mock-exam.html" class="btn btn-primary">Start your first mock exam</a>
+    </div>`;
+    return;
+  }
+  const recent = [...history].reverse().slice(0, 6);
+  el.innerHTML = `<div class="history-grid">${recent.map(r => {
+    const date = new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const pct  = Math.round((r.score / 10));
+    return `<div class="card">
+      <div class="history-score ${r.passed ? 'pass' : 'fail'}">${r.score}</div>
+      <div class="flex items-center gap-1 mt-1 mb-1">
+        <span class="badge ${r.passed ? 'badge-green' : 'badge-red'}">${r.passed ? 'PASS' : 'FAIL'}</span>
+        <span class="text-muted" style="font-size:0.8rem">${date}</span>
+      </div>
+      <div class="text-secondary" style="font-size:0.8125rem">${r.correct}/${r.total} correct</div>
+      <div class="progress-bar mt-1">
+        <div class="progress-bar-fill" style="width:${pct}%;background:${r.passed ? 'var(--green)' : '#f85149'}"></div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function clearHistory() {
+  if (!confirm('Clear all mock exam history? This cannot be undone.')) return;
+  localStorage.removeItem('gh300_mock_history');
+  renderDomains();
+  renderHistory();
+}
+
+renderDomains();
+renderHistory();
+</script>
+</body>
+</html>

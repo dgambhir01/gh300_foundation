@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drill Mode — GH-300 Prep</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="site-logo">
+      <div class="logo-icon">&#x1F916;</div>
+      GH-300 Prep
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="mock-exam.html" class="nav-link">Mock Exam</a>
+      <a href="drill.html" class="nav-link active">Drill</a>
+      <a href="diagnostic.html" class="nav-link">Diagnostic</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="container">
+
+  <div class="page-hero">
+    <h1 class="page-title">Flashcard Drill</h1>
+    <p class="page-subtitle">Answer each question, flip to check, then mark your confidence. Wrong answers resurface sooner.</p>
+  </div>
+
+  <div class="drill-layout">
+
+    <!-- Sidebar: domain filter + stats -->
+    <aside class="drill-sidebar">
+      <div class="card" style="padding:1rem">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.625rem">Filter by Domain</div>
+        <div id="domain-filters"></div>
+      </div>
+      <div class="card" style="padding:1rem">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.75rem">Overall Progress</div>
+        <div id="overall-stats"></div>
+      </div>
+      <button class="btn btn-outline w-full btn-sm" onclick="resetProgress()">Reset All Progress</button>
+    </aside>
+
+    <!-- Card area -->
+    <div class="card-area" id="card-area">
+      <!-- Rendered by JS -->
+    </div>
+
+  </div>
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <p class="footer-title">Official Resources</p>
+        <div class="footer-links">
+          <a href="https://learn.microsoft.com/credentials/certifications/github-copilot/" class="footer-link" target="_blank" rel="noopener">Exam Page (Microsoft Learn)</a>
+          <a href="https://aka.ms/GH300-StudyGuide" class="footer-link" target="_blank" rel="noopener">Official Study Guide PDF</a>
+          <a href="https://docs.github.com/en/copilot" class="footer-link" target="_blank" rel="noopener">GitHub Copilot Docs</a>
+        </div>
+      </div>
+    </div>
+    <p class="footer-disclaimer">Independent community resource. Not affiliated with or endorsed by Microsoft or GitHub.</p>
+  </div>
+</footer>
+
+<script src="questions.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────
+const STORAGE_KEY = 'gh300_drill_stats';
+const DOMAINS_ALL = 'All Domains';
+
+let allQuestions   = [];
+let filteredQ      = [];
+let queue          = [];     // indices into filteredQ
+let currentCard    = null;   // { q, queuePos }
+let isFlipped      = false;
+let selectedDomain = DOMAINS_ALL;
+let drillStats     = {};     // { id: { correct, total, interval } }
+let sessionCorrect = 0;
+let sessionTotal   = 0;
+
+// ── Boot ───────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  allQuestions = window.QUESTIONS || [];
+  drillStats   = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+  if (allQuestions.length === 0) {
+    document.getElementById('card-area').innerHTML =
+      '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>No questions found. Ensure questions.js is present.</p></div>';
+    return;
+  }
+
+  renderDomainFilters();
+  applyFilter(DOMAINS_ALL);
+});
+
+// ── Domain filter ──────────────────────────────────────────
+function renderDomainFilters() {
+  const domains = [...new Set(allQuestions.map(q => q.domain))];
+  const el = document.getElementById('domain-filters');
+  el.innerHTML = [DOMAINS_ALL, ...domains].map(d => {
+    const count = d === DOMAINS_ALL ? allQuestions.length : allQuestions.filter(q => q.domain === d).length;
+    return `<button class="domain-filter-btn${d === selectedDomain ? ' active' : ''}" onclick="applyFilter('${escAttr(d)}')">
+      <span style="flex:1;text-align:left;line-height:1.3">${escHtml(d === DOMAINS_ALL ? 'All Domains' : d)}</span>
+      <span class="filter-count">${count}</span>
+    </button>`;
+  }).join('');
+}
+
+function applyFilter(domain) {
+  selectedDomain = domain;
+  filteredQ = domain === DOMAINS_ALL ? [...allQuestions] : allQuestions.filter(q => q.domain === domain);
+  sessionCorrect = 0;
+  sessionTotal   = 0;
+  buildQueue();
+  renderDomainFilters();
+  renderOverallStats();
+  nextCard();
+}
+
+// ── Queue (spaced repetition) ──────────────────────────────
+function buildQueue() {
+  // Sort: unseen first, then by lowest interval (need more review)
+  queue = filteredQ.map((q, i) => i).sort((a, b) => {
+    const sa = drillStats[filteredQ[a].id] || { total: 0, interval: 0 };
+    const sb = drillStats[filteredQ[b].id] || { total: 0, interval: 0 };
+    if (sa.total === 0 && sb.total > 0) return -1;
+    if (sb.total === 0 && sa.total > 0) return  1;
+    return (sa.interval || 0) - (sb.interval || 0);
+  });
+}
+
+function nextCard() {
+  if (queue.length === 0) {
+    showComplete();
+    return;
+  }
+  const idx = queue.shift();
+  currentCard = { q: filteredQ[idx], idx };
+  isFlipped = false;
+  renderCard();
+}
+
+// ── Render ─────────────────────────────────────────────────
+function renderCard() {
+  const { q } = currentCard;
+  const stats  = drillStats[q.id] || { correct: 0, total: 0 };
+  const pct    = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : null;
+
+  const optionsHtml = q.options.map((opt, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return `<div class="option" id="opt-${i}" onclick="selectDrillOption(${i})">
+      <span class="option-marker">${q.type === 'single' ? '○' : '☐'}</span>
+      <span class="option-letter">${letter}.</span>
+      <span class="option-text">${escHtml(opt)}</span>
+    </div>`;
+  }).join('');
+
+  const correctText = q.type === 'single'
+    ? `${String.fromCharCode(65 + q.correct)}. ${q.options[q.correct]}`
+    : q.correct.map(i => `${String.fromCharCode(65 + i)}. ${q.options[i]}`).join('<br>');
+
+  const cardArea = document.getElementById('card-area');
+  cardArea.innerHTML = `
+    <div class="drill-stats-bar">
+      <div class="drill-stat">
+        <div class="drill-stat-value">${queue.length + 1}</div>
+        <div class="drill-stat-label">Remaining</div>
+      </div>
+      <div class="drill-stat">
+        <div class="drill-stat-value" style="color:var(--green-light)">${sessionCorrect}</div>
+        <div class="drill-stat-label">Correct</div>
+      </div>
+      <div class="drill-stat">
+        <div class="drill-stat-value" style="color:#ff7b72">${sessionTotal - sessionCorrect}</div>
+        <div class="drill-stat-label">Needs Work</div>
+      </div>
+      <div class="drill-stat">
+        <div class="drill-stat-value">${pct !== null ? pct + '%' : '–'}</div>
+        <div class="drill-stat-label">Lifetime %</div>
+      </div>
+    </div>
+
+    <div class="flashcard-container" style="width:100%;max-width:700px">
+      <div class="flashcard${isFlipped ? ' flipped' : ''}" id="flashcard" onclick="flipCard()">
+
+        <!-- Front -->
+        <div class="flashcard-face">
+          <div class="flashcard-label">
+            ${escHtml(q.domain)} &nbsp;·&nbsp; ${q.type === 'single' ? 'Single Select' : 'Multi-Select'}
+          </div>
+          <p class="flashcard-question mb-2">${escHtml(q.question)}</p>
+          <div class="options-list" id="drill-options" onclick="event.stopPropagation()">
+            ${optionsHtml}
+          </div>
+        </div>
+
+        <!-- Back -->
+        <div class="flashcard-face flashcard-back">
+          <div class="flashcard-label">Answer</div>
+          <p style="color:var(--green-light);font-weight:600;margin-bottom:0.875rem;font-size:1rem">${correctText}</p>
+          <p class="review-explanation" style="margin:0">${escHtml(q.explanation)}</p>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="click-hint" id="flip-hint">Click the card or press Space to reveal the answer</p>
+
+    <div class="drill-actions hidden" id="drill-actions">
+      <button class="btn btn-danger" onclick="markResult(false)">✗ Still Learning</button>
+      <button class="btn btn-secondary" onclick="markResult(null)">→ Skip</button>
+      <button class="btn btn-primary" onclick="markResult(true)">✓ Got It</button>
+    </div>`;
+
+  renderOverallStats();
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('flashcard').classList.toggle('flipped', isFlipped);
+  document.getElementById('flip-hint').classList.toggle('hidden', isFlipped);
+  document.getElementById('drill-actions').classList.toggle('hidden', !isFlipped);
+}
+
+// Allow Space to flip
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.target.matches('button,input,textarea')) {
+    e.preventDefault();
+    if (!isFlipped) flipCard();
+  }
+  if (e.code === 'Digit1' && isFlipped) markResult(false);
+  if (e.code === 'Digit2' && isFlipped) markResult(null);
+  if (e.code === 'Digit3' && isFlipped) markResult(true);
+});
+
+function selectDrillOption(i) {
+  const q  = currentCard.q;
+  const el = document.getElementById(`opt-${i}`);
+  if (q.type === 'single') {
+    document.querySelectorAll('#drill-options .option').forEach(o => {
+      o.classList.remove('selected');
+      o.querySelector('.option-marker').textContent = '○';
+    });
+    el.classList.add('selected');
+    el.querySelector('.option-marker').textContent = '●';
+  } else {
+    el.classList.toggle('selected');
+    el.querySelector('.option-marker').textContent = el.classList.contains('selected') ? '☑' : '☐';
+  }
+}
+
+// ── Mark result ────────────────────────────────────────────
+function markResult(correct) {
+  if (correct === null) { nextCard(); return; }
+
+  const { q } = currentCard;
+  sessionTotal++;
+  if (correct) sessionCorrect++;
+
+  // Update persistent stats
+  if (!drillStats[q.id]) drillStats[q.id] = { correct: 0, total: 0, interval: 1 };
+  drillStats[q.id].total++;
+  if (correct) {
+    drillStats[q.id].correct++;
+    drillStats[q.id].interval = Math.min((drillStats[q.id].interval || 1) * 2, 64);
+  } else {
+    drillStats[q.id].interval = 1;
+    // Re-insert into queue after 3 cards
+    queue.splice(Math.min(3, queue.length), 0, currentCard.idx);
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(drillStats));
+
+  nextCard();
+}
+
+// ── Complete state ─────────────────────────────────────────
+function showComplete() {
+  const pct = sessionTotal > 0 ? Math.round((sessionCorrect / sessionTotal) * 100) : 0;
+  document.getElementById('card-area').innerHTML = `
+    <div class="card text-center fade-in" style="max-width:500px;padding:3rem">
+      <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
+      <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:0.5rem">Session Complete!</h2>
+      <p class="text-secondary mb-2">Score: <strong style="color:${pct>=70?'var(--green-light)':'#ff7b72'}">${sessionCorrect}/${sessionTotal} (${pct}%)</strong></p>
+      <div class="flex gap-1" style="justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="applyFilter(selectedDomain)">Restart</button>
+        <a href="mock-exam.html" class="btn btn-secondary">Take Mock Exam</a>
+      </div>
+    </div>`;
+}
+
+// ── Overall stats ──────────────────────────────────────────
+function renderOverallStats() {
+  const el = document.getElementById('overall-stats');
+  if (!el) return;
+  const total   = allQuestions.length;
+  const seen    = allQuestions.filter(q => drillStats[q.id] && drillStats[q.id].total > 0).length;
+  const mastered = allQuestions.filter(q => {
+    const s = drillStats[q.id];
+    return s && s.total > 0 && Math.round((s.correct / s.total) * 100) >= 80;
+  }).length;
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:0.625rem;font-size:0.875rem">
+      <div class="flex justify-between"><span class="text-secondary">Seen</span><strong>${seen}/${total}</strong></div>
+      <div class="progress-bar mb-1"><div class="progress-bar-fill" style="width:${Math.round(seen/total*100)||0}%"></div></div>
+      <div class="flex justify-between"><span class="text-secondary">Mastered (≥80%)</span><strong style="color:var(--green-light)">${mastered}</strong></div>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:${Math.round(mastered/total*100)||0}%;background:var(--green-light)"></div></div>
+      <div class="flex justify-between mt-1"><span class="text-secondary">This session</span><strong>${sessionCorrect}/${sessionTotal}</strong></div>
+    </div>`;
+}
+
+function resetProgress() {
+  if (!confirm('Reset all drill progress? Lifetime correct/total counts will be cleared.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  drillStats = {};
+  sessionCorrect = 0;
+  sessionTotal   = 0;
+  buildQueue();
+  renderOverallStats();
+  nextCard();
+}
+
+// ── Helpers ────────────────────────────────────────────────
+function escHtml(str) {
+  if (!str && str !== 0) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function escAttr(str) { return escHtml(str).replace(/'/g,'\\\''); }
+</script>
+</body>
+</html>
